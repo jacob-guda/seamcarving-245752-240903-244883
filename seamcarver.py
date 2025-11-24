@@ -160,7 +160,42 @@ class SeamCarver(Picture):
         '''
         Remove a vertical seam from the picture
         '''
-        pass
+
+        # Imman's Part
+        
+        W = self.width();
+        H = self.height();
+    
+        # Validate width
+        if W == 1:
+            raise SeamError("Width of picture is 1, cannot remove vertical seam.")
+        
+        # Validate seam length
+        if len(seam) != H:
+            raise SeamError("Seam length does not match picture height.")
+        
+        # Validate seam indices
+        for j in range(H-1):
+            if abs(seam[j] - seam[j+1]) > 1:
+                raise SeamError("Invalid seam: adjacent indices differ by more than 1.")
+            
+        # Remove seam row by row
+        for j in range(H):
+            remove_col = seam[j]
+
+            # Validate column range
+            if not (0 <= remove_col < W):
+                raise SeamError("Seam index out of bounds.")
+            
+            # Shift all pixels right of the seam to the left
+            for col in range(remove_col, W - 1):
+                self[col, j] = self[col + 1, j]
+
+            # Delete the last column pixel
+            del self[W - 1, j]
+
+        # Update width
+        self._width -= 1
 
     def remove_horizontal_seam(self, seam: list[int]):
         '''
