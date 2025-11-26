@@ -4,7 +4,8 @@ from picture import Picture
 import math
 
 class SeamCarver(Picture):
-    ## TO-DO: fill in the methods below
+
+    # Jake's Part
     def energy(self, i: int, j: int) -> float:
         '''
         Return the energy of pixel at column i and row j
@@ -70,7 +71,7 @@ class SeamCarver(Picture):
                     prev_col = col - 1
 
                 # Check if top right energy value is lesser than top left
-                if col > 0 and dp[row - 1][col + 1] < prev_energy:
+                if col < width - 1 and dp[row - 1][col + 1] < prev_energy:
                     prev_energy = dp[row - 1][col + 1]
                     prev_col = col + 1
 
@@ -107,8 +108,8 @@ class SeamCarver(Picture):
         height = self.height()
 
         # Initialize dynamic programming
-        dp = [[0] * width for _ in range(height)]
-        parent = [[0] * width for _ in range(height)]
+        dp = [[0] * height for _ in range(width)]
+        parent = [[0] * height for _ in range(width)]
 
         # Kind of same approach but this time we go left to right and vice versa
 
@@ -201,6 +202,39 @@ class SeamCarver(Picture):
         '''
         Remove a horizontal seam from the picture
         '''
-        pass
+        
+        W = self.width()
+        H = self.height()
+
+        # Validate height
+        if H == 1:
+            raise SeamError("Height of picture is 1, cannot remove horizontal seam.")
+        
+        # Validate seam length
+        if len(seam) != W:
+            raise SeamError("Seam length does not match picture width.")
+        
+        # Validate seam indices
+        for i in range(W - 1):
+            if abs(seam[i] - seam[i+1]) > 1:
+                raise SeamError("Invalid seam: adjacent indices differ by more than 1.")
+        
+        # Remove seam column by column
+        for i in range(W):
+            remove_row = seam[i]
+            
+            # Validate row range
+            if not (0 <= remove_row < H):
+                raise SeamError("Seam index out of bounds.")
+            
+            # Shift all pixels below the seam upward
+            for row in range(remove_row, H - 1):
+                self[i, row] = self[i, row + 1]
+            
+            # Delete the last row pixel
+            del self[i, H - 1]
+        
+        # Update height
+        self._height -= 1
 class SeamError(Exception):
     pass
