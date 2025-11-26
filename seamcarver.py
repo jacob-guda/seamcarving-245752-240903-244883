@@ -5,7 +5,6 @@ import math
 
 class SeamCarver(Picture):
 
-    # Jake's Part
     def energy(self, i: int, j: int) -> float:
         '''
         Return the energy of pixel at column i and row j
@@ -161,8 +160,6 @@ class SeamCarver(Picture):
         '''
         Remove a vertical seam from the picture
         '''
-
-        # Imman's Part
         
         W = self.width();
         H = self.height();
