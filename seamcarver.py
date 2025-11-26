@@ -1,40 +1,237 @@
 #!/usr/bin/env python3
 
 from picture import Picture
+import math
 
 class SeamCarver(Picture):
-    ## TO-DO: fill in the methods below
+
     def energy(self, i: int, j: int) -> float:
         '''
         Return the energy of pixel at column i and row j
         '''
-        raise NotImplementedError
+
+        # Get width and hegiht from picture
+        width = self.width()
+        height = self.height()
+        
+        # Property of the energy function in which we check the pixels surrounding it.
+        # Modulo measure of height and width to ensure that border pixels will have wrapped pixels to compare to
+        up = (j - 1) % height
+        down = (j + 1) % height
+        left = (i - 1) % width
+        right = (i + 1) % width
+
+        # Implementation of x-gradient
+        r1, g1, b1 = self[right, j]
+        r2, g2, b2 = self[left, j]
+        dx2 = (r1 - r2)**2 + (g1 - g2)**2 + (b1 - b2)**2
+
+        # Implementation of y-gradient
+        r3, g3, b3 = self[i, down]
+        r4, g4, b4 = self[i, up]
+        dy2 = (r3 - r4)**2 + (g3 - g4)**2 + (b3 - b4)**2
+
+        # Return energy of main pixel
+        return math.sqrt(dx2 + dy2)
+        
 
     def find_vertical_seam(self) -> list[int]:
         '''
         Return a sequence of indices representing the lowest-energy
         vertical seam
         '''
-        raise NotImplementedError
+        
+        # Get width and height from picture
+        width = self.width()
+        height = self.height()
+
+        # Initialize dynamic programming
+        dp = [[0] * width for _ in range(height)]
+        parent = [[0] * width for _ in range(height)]
+
+        # Approach is to compute for the energies from top to bottom, then find the collumn with the smallest culmative energy.
+        # Go back up to recover the seam with the minimal energy
+        
+        # Base case: first row
+        for col in range(width):
+            dp[0][col] = self.energy(col, 0)
+
+        # Putting energy values into dp table (by rows)
+        for row in range(1, height):
+            for col in range(width):
+
+                # Default store top first
+                prev_energy = dp[row - 1][col]
+                prev_col = col
+
+                # Check if top left energy value is lesser than middle
+                if col > 0 and dp[row - 1][col - 1] < prev_energy:
+                    prev_energy = dp[row - 1][col - 1]
+                    prev_col = col - 1
+
+                # Check if top right energy value is lesser than top left
+                if col < width - 1 and dp[row - 1][col + 1] < prev_energy:
+                    prev_energy = dp[row - 1][col + 1]
+                    prev_col = col + 1
+
+                # Update dp and parent
+                dp[row][col] = self.energy(col, row) + prev_energy
+                parent[row][col] = prev_col
+
+        # Find the column with minimum cumulative energy in the bottom row
+        min_col = 0
+        min_energy = dp[height - 1][0]
+        for col in range(1, width):
+            if dp[height - 1][col] < min_energy:
+                min_energy = dp[height - 1][col]
+                min_col = col
+
+        # Backtrack to recover the seam path
+        seam = [0] * height
+        seam[height - 1] = min_col
+        for row in range(height - 1, 0, -1): # -> -1 because we go backwards (bottom to top)
+            seam[row - 1] = parent[row][seam[row]]
+
+        # Return list seam
+        return seam
+
 
     def find_horizontal_seam(self) -> list[int]:
         '''
         Return a sequence of indices representing the lowest-energy
         horizontal seam
         '''
-        raise NotImplementedError
+        
+        # Get width and height from picture
+        width = self.width()
+        height = self.height()
+
+        # Initialize dynamic programming
+        dp = [[0] * height for _ in range(width)]
+        parent = [[0] * height for _ in range(width)]
+
+        # Kind of same approach but this time we go left to right and vice versa
+
+        # Base case: first column
+        for row in range(height):
+            dp[0][row] = self.energy(0, row)
+
+        # Putting energy values into dp table (by collumn)
+        for col in range(1, width):
+            for row in range(height):
+
+                # Default store left first
+                prev_energy = dp[col - 1][row]
+                prev_row = row
+
+                # Check if top left energy value is lesser than left
+                if row > 0 and dp[col - 1][row - 1] < prev_energy:
+                    prev_energy = dp[col - 1][row - 1]
+                    prev_row = row - 1
+
+                # Check if bottom left energy value is lesser than top left
+                if row < height - 1 and dp[col - 1][row + 1] < prev_energy:
+                    prev_energy = dp[col - 1][row + 1]
+                    prev_row = row + 1
+
+                # Update dp and parent
+                dp[col][row] = self.energy(col, row) + prev_energy
+                parent[col][row] = prev_row
+        
+        # Find the row with minimum cumulative energy in the last collumn
+        min_row = 0
+        min_energy = dp[width - 1][0]
+        for row in range(1, height):
+            if dp[width - 1][row] < min_energy:
+                min_energy = dp[width - 1][row]
+                min_row = row
+
+        # Backtrack to recover seam
+        seam = [0] * width
+        seam[width - 1] = min_row
+        for col in range(width - 1, 0, -1):
+            seam[col - 1] = parent[col][seam[col]]
+
+        # Return list seam
+        return seam
+
 
     def remove_vertical_seam(self, seam: list[int]):
         '''
         Remove a vertical seam from the picture
         '''
-        raise NotImplementedError
+        
+        W = self.width();
+        H = self.height();
+    
+        # Validate width
+        if W == 1:
+            raise SeamError("Width of picture is 1, cannot remove vertical seam.")
+        
+        # Validate seam length
+        if len(seam) != H:
+            raise SeamError("Seam length does not match picture height.")
+        
+        # Validate seam indices
+        for j in range(H-1):
+            if abs(seam[j] - seam[j+1]) > 1:
+                raise SeamError("Invalid seam: adjacent indices differ by more than 1.")
+            
+        # Remove seam row by row
+        for j in range(H):
+            remove_col = seam[j]
+
+            # Validate column range
+            if not (0 <= remove_col < W):
+                raise SeamError("Seam index out of bounds.")
+            
+            # Shift all pixels right of the seam to the left
+            for col in range(remove_col, W - 1):
+                self[col, j] = self[col + 1, j]
+
+            # Delete the last column pixel
+            del self[W - 1, j]
+
+        # Update width
+        self._width -= 1
 
     def remove_horizontal_seam(self, seam: list[int]):
         '''
         Remove a horizontal seam from the picture
         '''
-        raise NotImplementedError
+        
+        W = self.width()
+        H = self.height()
 
+        # Validate height
+        if H == 1:
+            raise SeamError("Height of picture is 1, cannot remove horizontal seam.")
+        
+        # Validate seam length
+        if len(seam) != W:
+            raise SeamError("Seam length does not match picture width.")
+        
+        # Validate seam indices
+        for i in range(W - 1):
+            if abs(seam[i] - seam[i+1]) > 1:
+                raise SeamError("Invalid seam: adjacent indices differ by more than 1.")
+        
+        # Remove seam column by column
+        for i in range(W):
+            remove_row = seam[i]
+            
+            # Validate row range
+            if not (0 <= remove_row < H):
+                raise SeamError("Seam index out of bounds.")
+            
+            # Shift all pixels below the seam upward
+            for row in range(remove_row, H - 1):
+                self[i, row] = self[i, row + 1]
+            
+            # Delete the last row pixel
+            del self[i, H - 1]
+        
+        # Update height
+        self._height -= 1
 class SeamError(Exception):
     pass
